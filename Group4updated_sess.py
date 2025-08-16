@@ -57,10 +57,14 @@ if "test_cache" not in st.session_state:
 # ---------------------------
 # Data utilities
 # ---------------------------
-nltk.download('stopwords', quiet=True)
+from nltk.corpus import stopwords
+try:
+    stopwords.words('english')
+except LookupError:
+    nltk.download('stopwords')
 
 # FIX: correct variable name and path
-DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/jigsaw-toxic-comment-classification-challenge/train.csv")
+DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
 
 stop_words = set(stopwords.words('english'))
 stop_words.update({'article', 'wikipedia', 'page', 'edit', 'talk', 'user', 'please', 'thanks', 'thank'})
