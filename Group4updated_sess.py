@@ -58,10 +58,11 @@ if "test_cache" not in st.session_state:
 # Data utilities
 # ---------------------------
 from nltk.corpus import stopwords
-try:
-    stopwords.words('english')
-except LookupError:
-    nltk.download('stopwords')
+for resource in ["stopwords", "wordnet", "omw-1.4"]:
+    try:
+        nltk.data.find(f"corpora/{resource}")
+    except LookupError:
+        nltk.download(resource)
 
 # FIX: correct variable name and path
 DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
