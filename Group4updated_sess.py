@@ -64,7 +64,7 @@ if "test_cache" not in st.session_state:
     st.session_state.test_cache = {}
 
 # FIX: correct variable name and path
-DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
+DATA_PATH = Path(__file__).parent / "train.csv"
 
 stop_words = set(stopwords.words('english'))
 stop_words.update({'article', 'wikipedia', 'page', 'edit', 'talk', 'user', 'please', 'thanks', 'thank'})
