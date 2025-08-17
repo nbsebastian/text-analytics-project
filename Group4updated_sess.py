@@ -1,11 +1,14 @@
 import nltk
 from nltk.corpus import stopwords
 resources = ["stopwords", "wordnet", "omw-1.4"]
+
 for resource in resources:
     try:
         nltk.data.find(f"corpora/{resource}")
     except LookupError:
         nltk.download(resource)
+
+stop_words = set(stopwords.words("english"))
 
 import string
 import numpy as np
@@ -25,6 +28,7 @@ from collections import Counter
 import re
 from gensim.models import FastText
 from wordcloud import WordCloud
+from nltk.corpus import stopwords
 from io import StringIO
 from nltk.stem import PorterStemmer
 from sklearn.model_selection import train_test_split
@@ -48,96 +52,35 @@ st.set_page_config(
 # ---------------------------
 # Session state initialization
 # ---------------------------
-for key, val in {
-    "dataset": None,
-    "processed_data": None,
-    "models": {},
-    "model_metrics": {},
-    "test_cache": {},
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
+if "dataset" not in st.session_state:
+    st.session_state.dataset = None
+if "processed_data" not in st.session_state:
+    st.session_state.processed_data = None
+if "models" not in st.session_state:
+    st.session_state.models = {}
+if "model_metrics" not in st.session_state:
+    st.session_state.model_metrics = {}
+if "test_cache" not in st.session_state:
+    st.session_state.test_cache = {}
 
-# ---------------------------
-# Dataset source controls (Cloud-friendly)
-# ---------------------------
-st.sidebar.header("Dataset")
+# FIX: correct variable name and path
+DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
 
-# Default candidates (relative first, then your old absolute)
-DEFAULT_ABSOLUTE = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
-DATA_CANDIDATES = [
-    Path("train.csv"),
-    Path("data/train.csv"),
-    Path("dataset/train.csv"),
-    DEFAULT_ABSOLUTE,
-]
-
-uploaded_file = st.sidebar.file_uploader(
-    "Upload jigsaw train.csv (recommended on Streamlit Cloud)", type=["csv"]
-)
-path_input = st.sidebar.text_input(
-    "Or load from path (local/dev):", value=str(DEFAULT_ABSOLUTE)
-)
-
-def set_dataset_from_upload(file):
-    df = pd.read_csv(file)
-    st.session_state.dataset = df
-    st.sidebar.success(f"Loaded {len(df):,} rows from upload.")
-
-def set_dataset_from_path(p: Path):
-    if p.exists():
-        df = pd.read_csv(p)
-        st.session_state.dataset = df
-        st.sidebar.success(f"Loaded dataset from: {p}")
-    else:
-        st.sidebar.error(f"File not found: {p}")
-
-col_a, col_b = st.sidebar.columns(2)
-with col_a:
-    if uploaded_file is not None and st.button("Use upload"):
-        set_dataset_from_upload(uploaded_file)
-with col_b:
-    if st.button("Load from path"):
-        set_dataset_from_path(Path(path_input).expanduser())
-
-# ---------------------------
-# Data utilities
-# ---------------------------
-stop_words = set(stopwords.words("english"))
+stop_words = set(stopwords.words('english'))
 stop_words.update({'article', 'wikipedia', 'page', 'edit', 'talk', 'user', 'please', 'thanks', 'thank'})
 
 @st.cache_data
 def load_data_cached(path_str: str):
     return pd.read_csv(path_str)
 
+# FIX: check that DATA_PATH exists before loading
 def load_data():
-    """Return a DataFrame from session/upload/relative path.
-    Raises FileNotFoundError with a friendly message if none found.
-    """
-    # 1) Already loaded (upload or previous load)
-    if st.session_state.dataset is not None:
-        return st.session_state.dataset
-
-    # 2) Try the sidebar path input (if provided)
-    p = Path(path_input).expanduser().resolve()
-    if p.exists():
-        df = load_data_cached(str(p))
+    if st.session_state.dataset is None:
+        if not DATA_PATH.exists():
+            raise FileNotFoundError(f"File not found: {DATA_PATH}")
+        df = load_data_cached(str(DATA_PATH))
         st.session_state.dataset = df
-        return df
-
-    # 3) Try common relative candidates (works on Streamlit Cloud if CSV is in repo)
-    for cand in DATA_CANDIDATES:
-        try_path = Path(cand)
-        if try_path.exists():
-            df = load_data_cached(str(try_path))
-            st.session_state.dataset = df
-            return df
-
-    # 4) Nothing found → instruct user to upload
-    raise FileNotFoundError(
-        "Could not find 'train.csv'. Please upload the CSV from the sidebar "
-        "or add it to your repo (e.g., ./train.csv or ./data/train.csv)."
-    )
+    return st.session_state.dataset
 
 def clean_text_simple(text):
     text = str(text).lower()
@@ -204,6 +147,7 @@ def homepage():
         Identify and classify toxic online content using machine learning
         </div>
     """, unsafe_allow_html=True)
+
     st.markdown("""
         ### 👥 Group 4 Members
         <ul>
@@ -214,12 +158,14 @@ def homepage():
             <li><strong>Bernice Baadawo Abbe</strong> — 22253447</li>
         </ul>
     """, unsafe_allow_html=True)
+
     st.markdown("---")
     st.subheader("🚀 About This Project")
     st.write("""
     Detect and classify toxic comments across categories: Toxic, Severe toxic, Obscene, Threat, Insult, and Identity hate.
     Trained on the Jigsaw dataset.
     """)
+
     st.subheader("✨ Key Features")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -228,6 +174,7 @@ def homepage():
         st.markdown("### 🤖 Dual Model Approach\nCompare Logistic Regression & Random Forest.")
     with col3:
         st.markdown("### 📈 Comprehensive Metrics\nPrecision, Recall, F1-Score, ROC-AUC.")
+
     st.markdown("---")
     st.subheader("🧭 Navigation Guide")
     st.write("Use the sidebar to explore: Dataset Preview, Modeling & Evaluation, Prediction.")
@@ -253,8 +200,8 @@ def dataset_preview():
             plot_label_distribution(df, label_cols)
             plot_label_correlation(df, label_cols)
             show_label_overlap(df)
-    except FileNotFoundError as e:
-        st.error(str(e))
+    except FileNotFoundError:
+        st.error(f"Dataset not found at {DATA_PATH}")
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
@@ -264,10 +211,11 @@ def dataset_preview():
 def page2():
     st.title("🧼 Data Preprocessing")
     st.caption("This page prepares the data for analysis and modeling.")
+
     try:
         df = load_data()
-    except FileNotFoundError as e:
-        st.error(str(e))
+    except FileNotFoundError:
+        st.error("❌ Dataset not found. Please make sure `train.csv` is at DATA_PATH.")
         return
 
     def clean_text(text):
@@ -406,12 +354,14 @@ def page3():
     if "rf" not in st.session_state.models:
         st.subheader("🛠️ Tuning Random Forest")
         rf_base = RandomForestClassifier(random_state=42)
+
         rf_param_grid = {
             "n_estimators": [100, 200, 400],
             "max_depth": [None, 10, 20],
             "min_samples_split": [2, 5],
             "min_samples_leaf": [1, 2],
         }
+
         rf_grid = GridSearchCV(
             estimator=rf_base,
             param_grid=rf_param_grid,
@@ -424,6 +374,7 @@ def page3():
         rf_grid.fit(X_train, y_train)
         rf_model = rf_grid.best_estimator_
         st.session_state.models["rf"] = rf_model
+
         st.info(f"Best RF params: {rf_grid.best_params_}")
     else:
         rf_model = st.session_state.models["rf"]
@@ -468,6 +419,7 @@ def page3():
         "Random Forest": rf_report["weighted avg"]["f1-score"],
     }
     st.bar_chart(pd.Series(f1_scores))
+
     st.success("✅ Models and test data saved and cached in session for Prediction interface")
 
 # ---------------------------
