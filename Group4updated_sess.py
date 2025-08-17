@@ -1,7 +1,17 @@
+import nltk
+from nltk.corpus import stopwords
+resources = ["stopwords", "wordnet", "omw-1.4"]
+
+for resource in resources:
+    try:
+        nltk.data.find(f"corpora/{resource}")
+    except LookupError:
+        nltk.download(resource)
+
+stop_words = set(stopwords.words("english"))
+
 import string
 import numpy as np
-
-# --- SciPy fallback shim (fix: no _sla; use la consistently) ---
 try:
     import scipy.linalg as la
     if not hasattr(la, "triu"):
@@ -16,7 +26,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 import re
-import nltk
 from gensim.models import FastText
 from wordcloud import WordCloud
 from nltk.corpus import stopwords
@@ -53,12 +62,6 @@ if "model_metrics" not in st.session_state:
     st.session_state.model_metrics = {}
 if "test_cache" not in st.session_state:
     st.session_state.test_cache = {}
-
-# ---------------------------
-# Data utilities
-# ---------------------------
-from nltk.corpus import stopwords
-
 
 # FIX: correct variable name and path
 DATA_PATH = Path("/Users/borteley/Downloads/text_anal_project/final project/train.csv")
